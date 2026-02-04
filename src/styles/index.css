@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default CN Blue - Inspired by screenshot */
+  --primary: #0095FF;
+  --primary-hover: #0076CC;
+  --bg-sidebar: #FFFFFF;
+  --bg-main: #F5F7FA;
+  --text-main: #1F2329;
+  --text-muted: #8F959E;
+  --border-color: #EBEDF0;
+  --radius: 6px;
+  --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --font-family: 'Inter', 'Noto Sans SC', sans-serif;
+}
+
+[data-region="cn"] {
+  --primary: #0095FF;
+  --primary-hover: #0076CC;
+  --bg-sidebar: #FFFFFF;
+  --bg-main: #F5F7FA;
+}
+
+[data-region="global"] {
+  /* Global - Modern Professional Teal/Cyan instead of Purple */
+  --primary: #00B5B5;
+  --primary-hover: #008F8F;
+  --bg-sidebar: #FFFFFF; 
+  --bg-main: #F0F4F8;
+  --radius: 8px;
+}
+
+@layer base {
+  body {
+    @apply font-custom bg-main text-[var(--text-main)] antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer rounded-custom whitespace-nowrap;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:brightness-110 shadow-sm active:scale-[0.98];
+  }
+  
+  .btn-secondary {
+    @apply bg-white border border-border text-[var(--text-main)] hover:bg-slate-50 shadow-sm;
+  }
+  
+  .card {
+    @apply bg-white border border-border shadow-sm rounded-custom;
+  }
+
+  .sidebar-item {
+    @apply flex items-center justify-between px-4 py-3 text-sm transition-all duration-200 cursor-pointer mb-1 rounded-custom;
+  }
+
+  .input-field {
+    @apply bg-slate-100/50 border-none rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all;
+  }
+}
+
+/* Specific component styles */
+.table-header {
+  @apply bg-slate-50/50 text-[11px] font-bold text-muted uppercase tracking-wider border-b border-border;
+}
+
+.table-row {
+  @apply border-b border-border hover:bg-slate-50/80 transition-colors;
+}
+
+.status-badge {
+  @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase;
+}
