@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { 
   Plus, 
   ChevronLeft, 
@@ -15,7 +15,23 @@ export const AppointmentView = () => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('calendar'); // board, calendar
   const [currentView, setCurrentView] = useState('week'); // week, month, day
-  const [viewDate, setViewDate] = useState(new Date(2026, 1, 2)); // Feb 2nd, 2026 (Mon)
+  
+  // Use a separate state for the mini calendar's displayed month
+  const [miniCalendarMonth, setMiniCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  
+  // The selected/focused date for the main calendar
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+
+  // Calculate the start of the week (Monday) for the selected date
+  const weekStartDate = useMemo(() => {
+    const d = new Date(selectedDate);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    return new Date(d.setDate(diff));
+  }, [selectedDate]);
 
   const handlePatientClick = (name, status = 'confirmed') => {
     const realPatient = patients.find(p => p.name === name);
@@ -25,45 +41,66 @@ export const AppointmentView = () => {
     showToast(region === 'cn' ? `正在载入: ${name}` : `Loading: ${name}`, 'info');
   };
 
-  const nextWeek = () => {
-    const next = new Date(viewDate);
-    next.setDate(next.getDate() + 7);
-    setViewDate(next);
+  // Navigate the main calendar view
+  const navigateView = (direction) => {
+    const newDate = new Date(selectedDate);
+    if (currentView === 'day') {
+      newDate.setDate(newDate.getDate() + direction);
+    } else if (currentView === 'week') {
+      newDate.setDate(newDate.getDate() + (direction * 7));
+    } else if (currentView === 'month') {
+      newDate.setMonth(newDate.getMonth() + direction);
+    }
+    setSelectedDate(newDate);
+    // Also update mini calendar month if the new date is in a different month
+    if (newDate.getMonth() !== miniCalendarMonth.getMonth() || newDate.getFullYear() !== miniCalendarMonth.getFullYear()) {
+      setMiniCalendarMonth(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+    }
   };
 
-  const prevWeek = () => {
-    const prev = new Date(viewDate);
-    prev.setDate(prev.getDate() - 7);
-    setViewDate(prev);
+  // Navigate the mini calendar's displayed month
+  const navigateMiniCalendar = (direction) => {
+    setMiniCalendarMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() + direction);
+      return newMonth;
+    });
   };
 
-  const jumpToMonth = (m) => {
-    const next = new Date(viewDate);
-    next.setMonth(m);
-    next.setDate(1);
-    const day = next.getDay();
-    const diff = next.getDate() - day + (day === 0 ? -6 : 1);
-    setViewDate(new Date(next.setDate(diff)));
+  // Handle clicking a date on the mini calendar
+  const handleMiniCalendarDateClick = (date) => {
+    setSelectedDate(date);
+    // When clicking a date on mini calendar, switch to day view for better UX
+    setCurrentView('day');
+    // Update mini calendar month if clicked date is in a different month
+    if (date.getMonth() !== miniCalendarMonth.getMonth() || date.getFullYear() !== miniCalendarMonth.getFullYear()) {
+      setMiniCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    }
   };
 
   const resetToday = () => {
     const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
-    setViewDate(new Date(today.setDate(diff)));
+    setSelectedDate(today);
+    setMiniCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
   };
 
   const currentRange = () => {
-    const end = new Date(viewDate);
-    end.setDate(end.getDate() + 6);
     const months = region === 'cn' ? 
       ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'] :
       ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
-    if (viewDate.getMonth() === end.getMonth()) {
-      return `${viewDate.getDate()} - ${end.getDate()} ${months[viewDate.getMonth()]}, ${viewDate.getFullYear()}`;
+    if (currentView === 'day') {
+      return `${selectedDate.getDate()} ${months[selectedDate.getMonth()]}, ${selectedDate.getFullYear()}`;
+    } else if (currentView === 'week') {
+      const end = new Date(weekStartDate);
+      end.setDate(end.getDate() + 6);
+      if (weekStartDate.getMonth() === end.getMonth()) {
+        return `${weekStartDate.getDate()} - ${end.getDate()} ${months[weekStartDate.getMonth()]}, ${weekStartDate.getFullYear()}`;
+      }
+      return `${weekStartDate.getDate()} ${months[weekStartDate.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]}, ${weekStartDate.getFullYear()}`;
+    } else {
+      return `${months[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
     }
-    return `${viewDate.getDate()} ${months[viewDate.getMonth()]} - ${end.getDate()} ${months[end.getMonth()]}, ${viewDate.getFullYear()}`;
   };
 
   const getColDate = (base, offset) => {
@@ -84,7 +121,7 @@ export const AppointmentView = () => {
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startOffset = (firstDay.getDay() + 6) % 7;
+    const startOffset = (firstDay.getDay() + 6) % 7; // Monday = 0
     const days = [];
     
     for (let i = 0; i < startOffset; i++) {
@@ -101,45 +138,147 @@ export const AppointmentView = () => {
     return days;
   };
 
+  // Check if a date is the currently selected date
+  const isSelectedDate = (date) => {
+    return date.toDateString() === selectedDate.toDateString();
+  };
+
+  // Check if a date is today
+  const isToday = (date) => {
+    return date.toDateString() === new Date().toDateString();
+  };
+
   const MiniCalendar = () => {
-    const days = getMonthDays(viewDate);
+    const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
+    // Temporary state for year/month selection before confirmation
+    const [tempYear, setTempYear] = useState(miniCalendarMonth.getFullYear());
+    const [tempMonth, setTempMonth] = useState(miniCalendarMonth.getMonth());
+    
+    const days = getMonthDays(miniCalendarMonth);
     const weekDays = region === 'cn' ? ['一', '二', '三', '四', '五', '六', '日'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const months = region === 'cn' ? 
+      ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'] :
+      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const years = [];
+    for (let y = tempYear - 5; y <= tempYear + 5; y++) {
+      years.push(y);
+    }
+
+    const openPicker = () => {
+      // Reset temp values to current calendar month when opening
+      setTempYear(miniCalendarMonth.getFullYear());
+      setTempMonth(miniCalendarMonth.getMonth());
+      setShowYearMonthPicker(true);
+    };
+
+    const handleConfirm = () => {
+      setMiniCalendarMonth(new Date(tempYear, tempMonth, 1));
+      setShowYearMonthPicker(false);
+    };
+
+    const handleCancel = () => {
+      setShowYearMonthPicker(false);
+    };
     
     return (
-      <div className="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-4">
+      <div className="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-4 relative">
         <div className="flex justify-between items-center px-2">
-           <span className="text-[10px] font-black uppercase text-slate-800 tracking-widest">
-             {viewDate.getFullYear()}年 {region === 'cn' ? 
-               ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'][viewDate.getMonth()] : 
-               ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][viewDate.getMonth()]}
-           </span>
+           <button 
+             onClick={openPicker}
+             className="text-[10px] font-black uppercase text-slate-800 tracking-widest hover:text-primary transition-colors flex items-center gap-1"
+           >
+             {miniCalendarMonth.getFullYear()}年 {months[miniCalendarMonth.getMonth()]}
+             <ChevronRight size={12} className={`transition-transform ${showYearMonthPicker ? 'rotate-90' : ''}`} />
+           </button>
            <div className="flex gap-1">
-              <button onClick={() => jumpToMonth(viewDate.getMonth() - 1)} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400"><ChevronLeft size={14} /></button>
-              <button onClick={() => jumpToMonth(viewDate.getMonth() + 1)} className="p-1 hover:bg-slate-50 rounded-lg text-slate-400"><ChevronRight size={14} /></button>
+              <button onClick={() => navigateMiniCalendar(-1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"><ChevronLeft size={14} /></button>
+              <button onClick={() => navigateMiniCalendar(1)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"><ChevronRight size={14} /></button>
            </div>
         </div>
+        
+        {/* Year/Month Quick Picker */}
+        {showYearMonthPicker && (
+          <>
+            {/* Invisible overlay to capture clicks outside */}
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={handleCancel}
+            />
+            <div className="absolute top-14 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 p-4 space-y-4">
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{region === 'cn' ? '选择年份' : 'Year'}</p>
+                <select 
+                  value={tempYear}
+                  onChange={(e) => setTempYear(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none text-sm font-black text-slate-800 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+                >
+                  {Array.from({ length: 51 }, (_, i) => 2000 + i).map(y => (
+                    <option key={y} value={y}>{y}年</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{region === 'cn' ? '选择月份' : 'Month'}</p>
+                <select 
+                  value={tempMonth}
+                  onChange={(e) => setTempMonth(parseInt(e.target.value))}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none text-sm font-black text-slate-800 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none"
+                  style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
+                >
+                  {months.map((m, idx) => (
+                    <option key={idx} value={idx}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button 
+                  onClick={handleCancel}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  {region === 'cn' ? '取消' : 'Cancel'}
+                </button>
+                <button 
+                  onClick={handleConfirm}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                >
+                  {region === 'cn' ? '确定' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+
         <div className="grid grid-cols-7 gap-1">
-           {weekDays.map(d => <span key={d} className="text-[8px] font-black text-slate-300 text-center uppercase">{d}</span>)}
-           {days.map((d, i) => (
-             <button 
-               key={i} 
-               onClick={() => {
-                 setViewDate(d.date);
-                 setCurrentView('day');
-               }}
-               className={`h-7 w-7 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center
-                 ${d.currentMonth ? 'text-slate-700 hover:bg-primary/10 hover:text-primary' : 'text-slate-300'}
-                 ${d.date.toDateString() === new Date().toDateString() ? 'bg-primary text-white shadow-lg shadow-primary/20' : ''}
-                 ${d.date.toDateString() === viewDate.toDateString() ? 'border-2 border-primary/30' : ''}
-               `}
-             >
-               {d.date.getDate()}
-             </button>
-           ))}
+           {weekDays.map((d, idx) => <span key={idx} className="text-[8px] font-black text-slate-300 text-center uppercase">{d}</span>)}
+           {days.map((d, i) => {
+             const selected = isSelectedDate(d.date);
+             const today = isToday(d.date);
+             return (
+               <button 
+                 key={i} 
+                 onClick={() => handleMiniCalendarDateClick(d.date)}
+                 className={`h-7 w-7 rounded-lg text-[9px] font-bold transition-all flex items-center justify-center
+                   ${selected ? 'bg-primary text-white shadow-lg shadow-primary/20 font-black' : 
+                     today ? 'bg-primary/10 text-primary font-black hover:bg-primary hover:text-white' : 
+                     d.currentMonth ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900' : 'text-slate-300 hover:bg-slate-50 hover:text-slate-500'}
+                 `}
+               >
+                 {d.date.getDate()}
+               </button>
+             );
+           })}
         </div>
       </div>
     );
   };
+
+
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-6 h-[calc(100vh-120px)] overflow-hidden">
@@ -216,8 +355,8 @@ export const AppointmentView = () => {
                  <div className="flex items-center gap-4">
                     <button onClick={resetToday} className="px-5 py-2 rounded-xl bg-slate-50 text-[10px] font-black text-slate-500 hover:bg-slate-100 hover:text-primary transition-all uppercase tracking-widest">{region === 'cn' ? '今天' : 'Today'}</button>
                     <div className="flex items-center gap-1">
-                       <button onClick={prevWeek} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronLeft size={16} /></button>
-                       <button onClick={nextWeek} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronRight size={16} /></button>
+                       <button onClick={() => navigateView(-1)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronLeft size={16} /></button>
+                       <button onClick={() => navigateView(1)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronRight size={16} /></button>
                     </div>
                     <h3 className="text-sm font-black text-slate-800 uppercase tabular-nums tracking-tight ml-2">{currentRange()}</h3>
                  </div>
@@ -276,7 +415,7 @@ export const AppointmentView = () => {
                                <span className="px-3 py-1 bg-slate-50 text-[9px] font-black text-slate-400 rounded-xl group-hover:bg-primary/5 group-hover:text-primary transition-all uppercase tracking-widest">
                                   {t[app.type.toLowerCase()] || app.type}
                                </span>
-                               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=dr${i}`} className="w-6 h-6 rounded-full border border-white shadow-sm" />
+                               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=dr${i}`} className="w-6 h-6 rounded-full border border-white shadow-sm" alt="" />
                             </div>
                             <div className={`absolute top-0 left-0 w-1 h-full ${status === 'confirmed' ? 'bg-indigo-500' : status === 'pending' ? 'bg-amber-500' : 'bg-rose-500'}`} />
                           </motion.div>
@@ -292,21 +431,32 @@ export const AppointmentView = () => {
                       {(region === 'cn' ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).map(d => (
                         <div key={d} className="p-4 text-[10px] font-black text-slate-300 text-center uppercase tracking-[0.2em] border-r border-b border-slate-50 bg-slate-50/20">{d}</div>
                       ))}
-                      {getMonthDays(viewDate).map((d, i) => (
-                        <div key={i} className={`min-h-[140px] p-4 border-r border-b border-slate-50 relative group hover:bg-slate-50/30 transition-all ${!d.currentMonth ? 'opacity-30' : ''}`}>
-                           <span className={`text-[11px] font-black ${d.date.toDateString() === new Date().toDateString() ? 'text-primary bg-primary/10 w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-400'}`}>{d.date.getDate()}</span>
-                           <div className="mt-4 space-y-1">
-                              {appointments.filter(a => a.date === d.date.toISOString().split('T')[0]).map((app, ai) => (
-                                <div key={ai} className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase truncate border-l-2 ${
-                                  app.status === 'confirmed' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 
-                                  app.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'bg-rose-50 border-rose-500 text-rose-700'
-                                }`}>
-                                   {app.time} {app.patient}
-                                </div>
-                              ))}
-                           </div>
-                        </div>
-                      ))}
+                      {getMonthDays(selectedDate).map((d, i) => {
+                        const selected = isSelectedDate(d.date);
+                        const today = isToday(d.date);
+                        return (
+                          <div 
+                            key={i} 
+                            onClick={() => { setSelectedDate(d.date); setCurrentView('day'); }}
+                            className={`min-h-[140px] p-4 border-r border-b border-slate-50 relative group hover:bg-slate-50/30 transition-all cursor-pointer ${!d.currentMonth ? 'opacity-30' : ''} ${selected ? 'bg-primary/5' : ''}`}
+                          >
+                             <span className={`text-[11px] font-black inline-flex items-center justify-center w-6 h-6 rounded-full ${today ? 'bg-primary text-white' : selected ? 'bg-primary/20 text-primary' : 'text-slate-400'}`}>{d.date.getDate()}</span>
+                             <div className="mt-4 space-y-1">
+                                {appointments.filter(a => {
+                                  const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
+                                  return a.date === dateStr;
+                                }).slice(0, 3).map((app, ai) => (
+                                  <div key={ai} className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase truncate border-l-2 ${
+                                    app.status === 'confirmed' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 
+                                    app.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'bg-rose-50 border-rose-500 text-rose-700'
+                                  }`}>
+                                     {app.time} {app.patient}
+                                  </div>
+                                ))}
+                             </div>
+                          </div>
+                        );
+                      })}
                    </div>
                  ) : (
                    <div className="grid grid-cols-[auto,1fr] bg-white">
@@ -318,18 +468,24 @@ export const AppointmentView = () => {
                      
                      <div className={`grid ${currentView === 'day' ? 'grid-cols-1' : 'grid-cols-7'} flex-1`}>
                         {(currentView === 'day' ? [0] : [0,1,2,3,4,5,6]).map(offset => {
-                          const colDateStr = getColDate(viewDate, offset);
-                          const dayInWeek = new Date(colDateStr).getDay();
-                          const isToday = new Date(colDateStr).toDateString() === new Date().toDateString();
+                          const baseDate = currentView === 'day' ? selectedDate : weekStartDate;
+                          const colDateStr = getColDate(baseDate, offset);
+                          const colDate = new Date(colDateStr);
+                          const dayInWeek = colDate.getDay();
+                          const todayFlag = isToday(colDate);
+                          const selectedFlag = isSelectedDate(colDate);
                           
                           return (
-                            <div key={offset} className={`border-r border-slate-50 last:border-0 relative ${dayInWeek === 0 || dayInWeek === 6 ? 'bg-slate-50/10' : ''}`}>
-                               <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md p-6 border-b border-slate-50 text-center space-y-1">
+                            <div 
+                              key={offset} 
+                              onClick={() => { if (currentView === 'week') { setSelectedDate(colDate); setCurrentView('day'); } }}
+                              className={`border-r border-slate-50 last:border-0 relative ${dayInWeek === 0 || dayInWeek === 6 ? 'bg-slate-50/10' : ''} ${currentView === 'week' ? 'cursor-pointer hover:bg-slate-50/20' : ''}`}
+                            >
+                               <div className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md p-6 border-b border-slate-50 text-center space-y-1 ${selectedFlag && currentView === 'week' ? 'bg-primary/5' : ''}`}>
                                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
                                     {(region === 'cn' ? ['周日','周一','周二','周三','周四','周五','周六'] : ['SUN','MON','TUE','WED','THU','FRI','SAT'])[dayInWeek]}
                                   </p>
-                                  <p className={`text-2xl font-black tabular-nums transition-all ${isToday ? 'text-primary scale-110' : 'text-slate-800'}`}>{new Date(colDateStr).getDate()}</p>
-                                  {isToday && <div className="mx-auto w-1 h-1 bg-primary rounded-full" />}
+                                  <p className={`text-2xl font-black tabular-nums transition-all inline-flex items-center justify-center w-10 h-10 rounded-full ${todayFlag ? 'bg-primary text-white' : selectedFlag ? 'bg-primary/10 text-primary' : 'text-slate-800'}`}>{colDate.getDate()}</p>
                                </div>
 
                                <div className="relative h-[800px] group">
@@ -341,7 +497,7 @@ export const AppointmentView = () => {
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         style={{ top: `${getTimePos(app.time)}px` }}
-                                        onClick={() => handlePatientClick(app.patient, app.status)}
+                                        onClick={(e) => { e.stopPropagation(); handlePatientClick(app.patient, app.status); }}
                                         className={`absolute left-2 right-2 h-20 rounded-2xl p-4 shadow-sm group/card cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all z-10 border-l-4 ${
                                           app.status === 'confirmed' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 
                                           app.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-700' : 'bg-rose-50 border-rose-500 text-rose-700'
@@ -360,7 +516,7 @@ export const AppointmentView = () => {
                                      <div key={li} className="h-20 border-b border-slate-50/50 w-full" />
                                   ))}
                                   
-                                  {isToday && (
+                                  {todayFlag && (
                                     <div className="absolute left-0 right-0 border-t-2 border-primary z-20 pointer-events-none" style={{ top: `${getTimePos(new Date().toTimeString().slice(0,5))}px` }}>
                                        <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-primary rounded-full shadow-[0_0_8px_var(--primary)]" />
                                     </div>

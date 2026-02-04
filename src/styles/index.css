@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  /* Default CN Blue - Inspired by screenshot */
+  /* Unified Blue Theme - Same for CN/EN */
   --primary: #0095FF;
   --primary-hover: #0076CC;
   --bg-sidebar: #FFFFFF;
@@ -18,21 +18,6 @@
   --font-family: 'Inter', 'Noto Sans SC', sans-serif;
 }
 
-[data-region="cn"] {
-  --primary: #0095FF;
-  --primary-hover: #0076CC;
-  --bg-sidebar: #FFFFFF;
-  --bg-main: #F5F7FA;
-}
-
-[data-region="global"] {
-  /* Global - Modern Professional Teal/Cyan instead of Purple */
-  --primary: #00B5B5;
-  --primary-hover: #008F8F;
-  --bg-sidebar: #FFFFFF; 
-  --bg-main: #F0F4F8;
-  --radius: 8px;
-}
 
 @layer base {
   body {
