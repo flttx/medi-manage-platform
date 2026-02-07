@@ -9,9 +9,12 @@ A modern, high-performance patient management system built for dental and medica
 - **👥 Patient Management**: Full-featured patient registry with search, risk stratification, and detailed clinical profiles.
 - **🏥 Clinical Timeline**: Visual medical record history with support for chief complaints, diagnoses, and imaging attachments.
 - **🦷 Specialized Dental Chart**: Interactive dental charting system for precise record-keeping.
-- **💰 Finance Module**: Track revenue, pending payments, and monthly financial statistics.
+- **🧱 3D Scan Center**: Real-time 3D model visualization using Three.js/React Three Fiber for CAD/CAM reviews and diagnostic scans.
+- **🏭 Lab Order Management**: End-to-end tracking for dental labs with a technician-facing Kanban board and real-time production status.
+- **🤖 AI Intelligent Assistant**: Integrated AI for X-ray/Panorama analysis and clinical decision support.
+- **💰 Finance & Inventory**: Automated billing and inventory deduction linked to clinical actions.
 - **🌍 Multi-Region Support**: Full localization for Chinese and English markets with dedicated UI themes for each region.
-- **🔔 Notification System**: Global toast alerts and reminder configurations.
+- **📱 Multi-Terminal Sync**: Concurrent support for PC (Clinic/Lab), Doctor H5, and Patient H5.
 
 ## 🛠️ Technology Stack
 

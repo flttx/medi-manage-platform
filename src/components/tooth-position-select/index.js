@@ -1,0 +1,1 @@
+import comp from './tooth-position-select.vue';export default comp;

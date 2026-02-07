@@ -1,4 +1,5 @@
 import React, { useState, useContext, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   ChevronLeft, 
@@ -11,7 +12,8 @@ import { RegionContext } from '../contexts/RegionContext';
 import { useToast } from '../contexts/ToastContext';
 
 export const AppointmentView = () => {
-  const { region, t, setActiveView, setSelectedPatient, appointments, patients, setGlobalModal } = useContext(RegionContext);
+  const { t, setActiveView, setSelectedPatient, viewPatient, appointments, patients, setGlobalModal, doctors } = useContext(RegionContext);
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState('calendar'); // board, calendar
   const [currentView, setCurrentView] = useState('week'); // week, month, day
@@ -33,12 +35,13 @@ export const AppointmentView = () => {
     return new Date(d.setDate(diff));
   }, [selectedDate]);
 
-  const handlePatientClick = (name, status = 'confirmed') => {
-    const realPatient = patients.find(p => p.name === name);
-    const p = realPatient ? { ...realPatient, status } : { name, id: 'P2026XXX', age: 30, gender: 'female', phone: '138****8888', lastVisit: "2026.02.01", status, risk: 'Low' };
-    setSelectedPatient(p);
-    setActiveView('patientDetail');
-    showToast(region === 'cn' ? `正在载入: ${name}` : `Loading: ${name}`, 'info');
+  const handlePatientClick = (pName) => {
+    // This is a simplified patient object for demonstration.
+    // In a real app, you would fetch or find the patient details.
+    const p = { name: pName, id: "P2026001", age: 28, gender: "Male", phone: "138****8888" };
+    viewPatient(p);
+    navigate(`/patients/detail/${p.id}`);
+    showToast(t('common.loading') + ': ' + pName, 'info'); // Keep toast for user feedback
   };
 
   // Navigate the main calendar view
@@ -85,9 +88,7 @@ export const AppointmentView = () => {
   };
 
   const currentRange = () => {
-    const months = region === 'cn' ? 
-      ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'] :
-      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = t('common.months', { returnObjects: true });
     
     if (currentView === 'day') {
       return `${selectedDate.getDate()} ${months[selectedDate.getMonth()]}, ${selectedDate.getFullYear()}`;
@@ -138,35 +139,20 @@ export const AppointmentView = () => {
     return days;
   };
 
-  // Check if a date is the currently selected date
-  const isSelectedDate = (date) => {
-    return date.toDateString() === selectedDate.toDateString();
-  };
-
-  // Check if a date is today
   const isToday = (date) => {
     return date.toDateString() === new Date().toDateString();
   };
 
   const MiniCalendar = () => {
     const [showYearMonthPicker, setShowYearMonthPicker] = useState(false);
-    // Temporary state for year/month selection before confirmation
     const [tempYear, setTempYear] = useState(miniCalendarMonth.getFullYear());
     const [tempMonth, setTempMonth] = useState(miniCalendarMonth.getMonth());
     
     const days = getMonthDays(miniCalendarMonth);
-    const weekDays = region === 'cn' ? ['一', '二', '三', '四', '五', '六', '日'] : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    const months = region === 'cn' ? 
-      ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'] :
-      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const weekDays = t('common.weekDays', { returnObjects: true });
+    const months = t('common.months', { returnObjects: true });
     
-    const years = [];
-    for (let y = tempYear - 5; y <= tempYear + 5; y++) {
-      years.push(y);
-    }
-
     const openPicker = () => {
-      // Reset temp values to current calendar month when opening
       setTempYear(miniCalendarMonth.getFullYear());
       setTempMonth(miniCalendarMonth.getMonth());
       setShowYearMonthPicker(true);
@@ -188,7 +174,7 @@ export const AppointmentView = () => {
              onClick={openPicker}
              className="text-[10px] font-black uppercase text-slate-800 tracking-widest hover:text-primary transition-colors flex items-center gap-1"
            >
-             {miniCalendarMonth.getFullYear()}年 {months[miniCalendarMonth.getMonth()]}
+             {miniCalendarMonth.getFullYear()} {months[miniCalendarMonth.getMonth()]}
              <ChevronRight size={12} className={`transition-transform ${showYearMonthPicker ? 'rotate-90' : ''}`} />
            </button>
            <div className="flex gap-1">
@@ -197,17 +183,12 @@ export const AppointmentView = () => {
            </div>
         </div>
         
-        {/* Year/Month Quick Picker */}
         {showYearMonthPicker && (
           <>
-            {/* Invisible overlay to capture clicks outside */}
-            <div 
-              className="fixed inset-0 z-40" 
-              onClick={handleCancel}
-            />
+            <div className="fixed inset-0 z-40" onClick={handleCancel} />
             <div className="absolute top-14 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 p-4 space-y-4">
               <div className="space-y-2">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{region === 'cn' ? '选择年份' : 'Year'}</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('appointment.picker.year')}</p>
                 <select 
                   value={tempYear}
                   onChange={(e) => setTempYear(parseInt(e.target.value))}
@@ -215,13 +196,13 @@ export const AppointmentView = () => {
                   style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '16px' }}
                 >
                   {Array.from({ length: 51 }, (_, i) => 2000 + i).map(y => (
-                    <option key={y} value={y}>{y}年</option>
+                    <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-2">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{region === 'cn' ? '选择月份' : 'Month'}</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('appointment.picker.month')}</p>
                 <select 
                   value={tempMonth}
                   onChange={(e) => setTempMonth(parseInt(e.target.value))}
@@ -234,30 +215,18 @@ export const AppointmentView = () => {
                 </select>
               </div>
 
-              {/* Action buttons */}
               <div className="flex gap-2 pt-2 border-t border-slate-100">
-                <button 
-                  onClick={handleCancel}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                >
-                  {region === 'cn' ? '取消' : 'Cancel'}
-                </button>
-                <button 
-                  onClick={handleConfirm}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
-                >
-                  {region === 'cn' ? '确定' : 'Confirm'}
-                </button>
+                <button onClick={handleCancel} className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
+                <button onClick={handleConfirm} className="flex-1 px-4 py-2.5 rounded-xl bg-primary text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">{t('common.confirm')}</button>
               </div>
             </div>
           </>
         )}
 
-
         <div className="grid grid-cols-7 gap-1">
            {weekDays.map((d, idx) => <span key={idx} className="text-[8px] font-black text-slate-300 text-center uppercase">{d}</span>)}
            {days.map((d, i) => {
-             const selected = isSelectedDate(d.date);
+             const selected = d.date.toDateString() === selectedDate.toDateString();
              const today = isToday(d.date);
              return (
                <button 
@@ -278,8 +247,6 @@ export const AppointmentView = () => {
     );
   };
 
-
-
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-6 h-[calc(100vh-120px)] overflow-hidden">
         <div className="w-72 space-y-8 flex flex-col shrink-0">
@@ -288,19 +255,19 @@ export const AppointmentView = () => {
             className="w-full bg-primary text-white p-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 hover:scale-[1.02] transition-all group active:scale-95 border-none"
           >
             <Plus size={18} className="group-hover:rotate-90 transition-transform" />
-            {region === 'cn' ? '新增预约' : 'New Appointment'}
+            {t('appointment.newAppt')}
           </button>
 
           <MiniCalendar />
 
          <div className="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
             <div className="space-y-4">
-               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">{region === 'cn' ? '我的日历' : 'My Calendars'}</h4>
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">{t('appointment.myCalendars')}</h4>
                <div className="space-y-1">
                   {[
-                    { label: t.confirmed, color: 'bg-indigo-500' },
-                    { label: t.pending, color: 'bg-amber-500' },
-                    { label: t.cancelled, color: 'bg-rose-500' }
+                    { label: t('status.confirmed'), color: 'bg-indigo-500' },
+                    { label: t('status.pending'), color: 'bg-amber-500' },
+                    { label: t('status.cancelled'), color: 'bg-rose-500' }
                   ].map((cat, i) => (
                     <div key={i} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 rounded-2xl cursor-pointer transition-all">
                        <div className={`w-3 h-3 rounded-md ${cat.color}`} />
@@ -312,11 +279,11 @@ export const AppointmentView = () => {
             </div>
 
             <div className="card p-6 border-none shadow-xl shadow-slate-200/50 bg-white rounded-[2rem] space-y-6">
-               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.stratification}</h4>
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.stratification')}</h4>
                <div className="space-y-4">
                   {[
-                    { label: t.confirmed, value: "85%", color: "bg-indigo-500" },
-                    { label: t.pending, value: "15%", color: "bg-amber-500" }
+                    { label: t('status.confirmed'), value: "85%", color: "bg-indigo-500" },
+                    { label: t('status.pending'), value: "15%", color: "bg-amber-500" }
                   ].map((stat, idx) => (
                     <div key={idx} className="space-y-2">
                        <div className="flex justify-between items-end">
@@ -341,19 +308,19 @@ export const AppointmentView = () => {
                     onClick={() => setActiveTab('board')}
                     className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${activeTab === 'board' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                   >
-                    {region === 'cn' ? '看板' : 'Board'}
+                    {t('appointment.tabs.board')}
                   </button>
                   <button 
                     onClick={() => setActiveTab('calendar')}
                     className={`px-4 py-2 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest ${activeTab === 'calendar' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                   >
-                    {region === 'cn' ? '日历' : 'Calendar'}
+                    {t('appointment.tabs.calendar')}
                   </button>
                </div>
 
                {activeTab === 'calendar' && (
                  <div className="flex items-center gap-4">
-                    <button onClick={resetToday} className="px-5 py-2 rounded-xl bg-slate-50 text-[10px] font-black text-slate-500 hover:bg-slate-100 hover:text-primary transition-all uppercase tracking-widest">{region === 'cn' ? '今天' : 'Today'}</button>
+                    <button onClick={resetToday} className="px-5 py-2 rounded-xl bg-slate-50 text-[10px] font-black text-slate-500 hover:bg-slate-100 hover:text-primary transition-all uppercase tracking-widest">{t('appointment.today')}</button>
                     <div className="flex items-center gap-1">
                        <button onClick={() => navigateView(-1)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronLeft size={16} /></button>
                        <button onClick={() => navigateView(1)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-primary transition-all"><ChevronRight size={16} /></button>
@@ -370,9 +337,9 @@ export const AppointmentView = () => {
                    onChange={(e) => setCurrentView(e.target.value)}
                    className="bg-slate-50 border-none rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest px-4 py-2.5 focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer pr-10"
                  >
-                   <option value="day">{region === 'cn' ? '日' : 'Day'}</option>
-                   <option value="week">{region === 'cn' ? '周' : 'Week'}</option>
-                   <option value="month">{region === 'cn' ? '月' : 'Month'}</option>
+                   <option value="day">{t('appointment.views.day')}</option>
+                   <option value="week">{t('appointment.views.week')}</option>
+                   <option value="month">{t('appointment.views.month')}</option>
                  </select>
                )}
                <div className="flex gap-2">
@@ -385,19 +352,22 @@ export const AppointmentView = () => {
          <div className="flex-1 overflow-y-auto relative custom-scrollbar">
             {activeTab === 'board' ? (
                <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {['confirmed', 'pending', 'cancelled'].map(status => (
-                    <div key={status} className="space-y-6">
+                  {doctors.map(dr => (
+                    <div key={dr.id} className="space-y-6">
                       <div className="flex items-center justify-between px-2">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2.5 h-2.5 rounded-full ${status === 'confirmed' ? 'bg-indigo-500 shadow-[0_0_10px_var(--indigo-500)]' : status === 'pending' ? 'bg-amber-500 shadow-[0_0_10px_var(--amber-500)]' : 'bg-rose-500 shadow-[0_0_10px_var(--rose-500)]'}`} />
-                          <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{t[status]}</h4>
+                          <div className={`w-2 h-2 rounded-full ${dr.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                          <div>
+                             <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">{dr.name}</h4>
+                             <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{dr.role}</p>
+                          </div>
                         </div>
                         <span className="text-[10px] font-black text-slate-300 tabular-nums bg-slate-50 px-2 py-0.5 rounded-md">
-                          {appointments.filter(a => a.status === status).length}
+                          {appointments.filter(a => a.doctor === dr.name).length}
                         </span>
                       </div>
                       <div className="space-y-4">
-                        {appointments.filter(a => a.status === status).map((app, i) => (
+                        {appointments.filter(a => a.doctor === dr.name).map((app, i) => (
                           <motion.div 
                             key={i} 
                             whileHover={{ y: -4, scale: 1.02 }}
@@ -412,12 +382,17 @@ export const AppointmentView = () => {
                                <span className="text-[10px] font-black text-slate-400 tabular-nums">{app.time}</span>
                             </div>
                             <div className="flex items-center justify-between pt-2">
-                               <span className="px-3 py-1 bg-slate-50 text-[9px] font-black text-slate-400 rounded-xl group-hover:bg-primary/5 group-hover:text-primary transition-all uppercase tracking-widest">
-                                  {t[app.type.toLowerCase()] || app.type}
-                               </span>
-                               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=dr${i}`} className="w-6 h-6 rounded-full border border-white shadow-sm" alt="" />
+                               <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase ${app.status === 'confirmed' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                     {t(`status.${app.status}`)}
+                                  </span>
+                                  <span className="px-3 py-1 bg-slate-50 text-[9px] font-black text-slate-400 rounded-xl group-hover:bg-primary/5 group-hover:text-primary transition-all uppercase tracking-widest">
+                                     {t[app.type.toLowerCase()] || app.type}
+                                  </span>
+                               </div>
+                               <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${app.patient}`} className="w-6 h-6 rounded-full border border-white shadow-sm" alt="" />
                             </div>
-                            <div className={`absolute top-0 left-0 w-1 h-full ${status === 'confirmed' ? 'bg-indigo-500' : status === 'pending' ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                            <div className={`absolute top-0 left-0 w-1 h-full ${dr.color}`} />
                           </motion.div>
                         ))}
                       </div>
@@ -428,19 +403,18 @@ export const AppointmentView = () => {
                <>
                  {currentView === 'month' ? (
                    <div className="h-full grid grid-cols-7 border-l border-t border-slate-50">
-                      {(region === 'cn' ? ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).map(d => (
+                      {t('common.weekDaysFull', { returnObjects: true }).map(d => (
                         <div key={d} className="p-4 text-[10px] font-black text-slate-300 text-center uppercase tracking-[0.2em] border-r border-b border-slate-50 bg-slate-50/20">{d}</div>
                       ))}
                       {getMonthDays(selectedDate).map((d, i) => {
-                        const selected = isSelectedDate(d.date);
                         const today = isToday(d.date);
                         return (
                           <div 
                             key={i} 
                             onClick={() => { setSelectedDate(d.date); setCurrentView('day'); }}
-                            className={`min-h-[140px] p-4 border-r border-b border-slate-50 relative group hover:bg-slate-50/30 transition-all cursor-pointer ${!d.currentMonth ? 'opacity-30' : ''} ${selected ? 'bg-primary/5' : ''}`}
+                            className={`min-h-[140px] p-4 border-r border-b border-slate-50 relative group hover:bg-slate-50/30 transition-all cursor-pointer ${!d.currentMonth ? 'opacity-30' : ''}`}
                           >
-                             <span className={`text-[11px] font-black inline-flex items-center justify-center w-6 h-6 rounded-full ${today ? 'bg-primary text-white' : selected ? 'bg-primary/20 text-primary' : 'text-slate-400'}`}>{d.date.getDate()}</span>
+                             <span className={`text-[11px] font-black inline-flex items-center justify-center w-6 h-6 rounded-full ${today ? 'bg-primary text-white' : 'text-slate-400'}`}>{d.date.getDate()}</span>
                              <div className="mt-4 space-y-1">
                                 {appointments.filter(a => {
                                   const dateStr = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}-${String(d.date.getDate()).padStart(2, '0')}`;
@@ -473,7 +447,6 @@ export const AppointmentView = () => {
                           const colDate = new Date(colDateStr);
                           const dayInWeek = colDate.getDay();
                           const todayFlag = isToday(colDate);
-                          const selectedFlag = isSelectedDate(colDate);
                           
                           return (
                             <div 
@@ -481,11 +454,11 @@ export const AppointmentView = () => {
                               onClick={() => { if (currentView === 'week') { setSelectedDate(colDate); setCurrentView('day'); } }}
                               className={`border-r border-slate-50 last:border-0 relative ${dayInWeek === 0 || dayInWeek === 6 ? 'bg-slate-50/10' : ''} ${currentView === 'week' ? 'cursor-pointer hover:bg-slate-50/20' : ''}`}
                             >
-                               <div className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md p-6 border-b border-slate-50 text-center space-y-1 ${selectedFlag && currentView === 'week' ? 'bg-primary/5' : ''}`}>
+                               <div className={`sticky top-0 z-40 bg-white/95 backdrop-blur-md p-6 border-b border-slate-50 text-center space-y-1`}>
                                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">
-                                    {(region === 'cn' ? ['周日','周一','周二','周三','周四','周五','周六'] : ['SUN','MON','TUE','WED','THU','FRI','SAT'])[dayInWeek]}
+                                    {t('common.weekDaysFull', { returnObjects: true })[dayInWeek]}
                                   </p>
-                                  <p className={`text-2xl font-black tabular-nums transition-all inline-flex items-center justify-center w-10 h-10 rounded-full ${todayFlag ? 'bg-primary text-white' : selectedFlag ? 'bg-primary/10 text-primary' : 'text-slate-800'}`}>{colDate.getDate()}</p>
+                                  <p className={`text-2xl font-black tabular-nums transition-all inline-flex items-center justify-center w-10 h-10 rounded-full ${todayFlag ? 'bg-primary text-white' : 'text-slate-800'}`}>{colDate.getDate()}</p>
                                </div>
 
                                <div className="relative h-[800px] group">

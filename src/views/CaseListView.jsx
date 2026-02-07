@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FolderOpen, 
   ChevronRight
@@ -7,21 +8,23 @@ import { motion } from 'framer-motion';
 import { RegionContext } from '../contexts/RegionContext';
 
 export const CaseListView = () => {
-  const { region, t, setActiveView, setSelectedPatient } = useContext(RegionContext);
+  const { t, setActiveView, setSelectedPatient, viewPatient } = useContext(RegionContext);
+  const navigate = useNavigate();
   
   const cases = [
-    { name: "ces", patient: "kk", id: "P2026001", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.28", modified: "2026.01.28" },
-    { name: "测试纹理调节", patient: "DD-TEST", id: "DD-TEST0518", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
-    { name: "00816", patient: "kk", id: "P2026001", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
-    { name: "00372", patient: "kk", id: "P2026001", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
-    { name: "00337", patient: "kk", id: "P2026001", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
-    { name: "00168", patient: "kk", id: "P2026001", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
-    { name: "测试预设参数", patient: "DD-TEST", id: "DD-TEST0518", type: region === 'cn' ? "牙程设计" : "Dental Design", doctor: "测", date: "2026.01.09", modified: "2026.01.09" },
+    { name: "ces", patient: "kk", id: "P2026001", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.28", modified: "2026.01.28" },
+    { name: "测试纹理调节", patient: "DD-TEST", id: "DD-TEST0518", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
+    { name: "00816", patient: "kk", id: "P2026001", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
+    { name: "00372", patient: "kk", id: "P2026001", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
+    { name: "00337", patient: "kk", id: "P2026001", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
+    { name: "00168", patient: "kk", id: "P2026001", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.27", modified: "2026.01.27" },
+    { name: "测试预设参数", patient: "DD-TEST", id: "DD-TEST0518", type: t('case.dentalDesign'), doctor: "测", date: "2026.01.09", modified: "2026.01.09" },
   ];
 
   const handlePatientClick = (pName) => {
-    setSelectedPatient({ name: pName, id: "P2026001", age: 28, gender: "Male", phone: "138****8888" });
-    setActiveView('patientDetail');
+    const p = { name: pName, id: "P2026001", age: 28, gender: "Male", phone: "138****8888" };
+    viewPatient(p);
+    navigate(`/patients/detail/${p.id}`);
   };
 
   return (
@@ -35,13 +38,13 @@ export const CaseListView = () => {
           <thead className="sticky top-0 z-10 bg-white/80 backdrop-blur-md">
             <tr className="border-b border-slate-100 text-[11px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/30">
               <th className="p-4 w-12 text-center"><input type="checkbox" className="rounded-sm accent-primary" /></th>
-              <th className="p-4 w-1/4">{region === 'cn' ? '病例名称' : 'Case Name'}</th>
-              <th className="p-4">{region === 'cn' ? '患者' : 'Patient'}</th>
-              <th className="p-4">{region === 'cn' ? '患者编号' : 'Patient No.'}</th>
-              <th className="p-4">{region === 'cn' ? '类型' : 'Type'}</th>
-              <th className="p-4">{region === 'cn' ? '医生' : 'Doctor'}</th>
-              <th className="p-4 w-32">{region === 'cn' ? '创建日期' : 'Created'}</th>
-              <th className="p-4 w-24 text-right">{region === 'cn' ? '操作' : 'Action'}</th>
+              <th className="p-4 w-1/4">{t('case.name')}</th>
+              <th className="p-4">{t('case.doctor')}</th>
+              <th className="p-4">{t('case.id')}</th>
+              <th className="p-4">{t('case.type')}</th>
+              <th className="p-4">{t('case.doctor')}</th>
+              <th className="p-4 w-32">{t('case.created')}</th>
+              <th className="p-4 w-24 text-right">{t('common.action')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -85,7 +88,7 @@ export const CaseListView = () => {
       </div>
 
       <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
-        <span className="text-[11px] text-slate-400 font-medium">Showing 7 of 128 items</span>
+        <span className="text-[11px] text-slate-400 font-medium">{t('common.showingItems', { count: cases.length })}</span>
         <div className="flex items-center gap-1 text-[11px] font-bold">
           {[1, 2, 3, '...', 12].map((n, i) => (
             <div key={i} className={`w-7 h-7 flex items-center justify-center rounded-lg cursor-pointer transition-all ${n === 1 ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-400 hover:bg-white hover:shadow-sm'}`}>
