@@ -159,7 +159,10 @@ export const SidebarBase = () => {
         {/* H5 Entrances */}
         <div className="flex gap-2">
            <button 
-             onClick={() => window.open(`${window.location.pathname}?platform=patient-h5`, '_blank', 'width=375,height=812')}
+             onClick={() => {
+               const url = window.location.origin + window.location.pathname + '?platform=patient-h5';
+               window.open(url, '_blank', 'width=375,height=812');
+             }}
              className="flex-1 flex flex-col items-center justify-center gap-1.5 py-3 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 transition-all active:scale-95"
            >
               <div className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
@@ -168,7 +171,10 @@ export const SidebarBase = () => {
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-primary transition-colors">{t('common.patientH5')}</span>
            </button>
            <button 
-             onClick={() => window.open(`${window.location.pathname}?platform=doctor-h5`, '_blank', 'width=375,height=812')}
+             onClick={() => {
+               const url = window.location.origin + window.location.pathname + '?platform=doctor-h5';
+               window.open(url, '_blank', 'width=375,height=812');
+             }}
              className="flex-1 flex flex-col items-center justify-center gap-1.5 py-3 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 transition-all active:scale-95"
            >
               <div className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-400 group-hover:text-primary transition-colors">
